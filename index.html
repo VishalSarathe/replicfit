@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Replicfit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{margin:0;font-family:Arial;background:#f4f4f4}
+
+/* HEADER */
+header{
+  background:#111;
+  color:#fff;
+  padding:15px 30px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* BUTTON */
+button{
+  padding:8px 15px;
+  background:#27ae60;
+  border:none;
+  color:#fff;
+  font-weight:bold;
+  border-radius:5px;
+  cursor:pointer;
+}
+
+/* OVERLAY */
+#overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+
+/* AUTH BOX */
+.container{
+  max-width:400px;
+  background:#fff;
+  padding:25px;
+  border-radius:10px;
+  position:relative;
+}
+
+/* CLOSE BUTTON */
+.close{
+  position:absolute;
+  top:10px;
+  right:12px;
+  font-size:22px;
+  cursor:pointer;
+  color:#333;
+}
+
+input{width:100%;padding:10px;margin:8px 0}
+
+.link{text-align:center;font-size:14px;margin-top:10px}
+.link a{color:#27ae60;cursor:pointer;font-weight:bold}
+
+.success{color:green;font-weight:bold}
+.error{color:red;font-weight:bold}
+
+/* DASHBOARD */
+#dashboard{
+  display:none;
+  padding:40px;
+}
+.logout{
+  background:red;
+  margin-top:20px;
+}
+
+/* NAV MENU */
+header nav{
+  display:flex;
+  align-items:center;
+  gap:20px;
+}
+
+header nav a{
+  color:#fff;                 /* ✅ WHITE TEXT */
+  text-decoration:none;
+  font-weight:600;
+  padding:6px 10px;
+  border-radius:4px;
+  transition:0.3s;
+}
+
+/* HOVER EFFECT */
+header nav a:hover{
+  background:#27ae60;         /* green hover */
+  color:#fff;
+}
+
+/* LOGIN LINK AS BUTTON LOOK */
+header nav a#loginBtn{
+  background:#27ae60;
+  padding:8px 15px;
+}
+
+header nav a#loginBtn:hover{
+  background:#1e8449;
+}
+header nav a.active{
+  border-bottom:2px solid #27ae60;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">Replicfit</div>
+  <nav>
+    <a href="./index.html">Home</a>
+	<a href="./about-us.html">About Us</a>
+    <a href="#"  onclick="openAuth()" class="active">Login</a>
+    <span id="status"></span>
+	<a href="./class-details.html">Classes</a>
+	<a href="./gallery.html">Gallery</a>
+ </nav>
+</header>
+
+<!-- MAIN CONTENT -->
+<main style="height: calc(100vh - 70px);">
+  <object 
+    data="index-old.html" 
+    type="text/html" 
+    width="100%" 
+    height="100%">
+  </object>
+</main>
+
+<!-- LOGIN OVERLAY -->
+<div id="overlay">
+  <div class="container" id="authBox">
+    <span class="close" onclick="closeAuth()">&times;</span>
+
+    <!-- LOGIN -->
+    <div id="loginBox">
+      <h3>Login</h3>
+      <input id="luser" placeholder="Username">
+      <input id="lpass" type="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+
+      <div class="link">
+        <a onclick="showForgot()">Forgot ID / Password?</a><br>
+        New user? <a onclick="showSignup()">Sign Up</a>
+      </div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signupBox" style="display:none">
+      <h3>Sign Up</h3>
+      <input id="suser" placeholder="Username">
+      <input id="spass" type="password" placeholder="Password">
+      <button onclick="signup()">Register</button>
+
+      <div class="link">
+        Already have account? <a onclick="showLogin()">Login</a>
+      </div>
+    </div>
+
+    <!-- FORGOT -->
+    <div id="forgotBox" style="display:none">
+      <h3>Recover Account</h3>
+      <input id="fuser" placeholder="Enter Username">
+      <button onclick="recover()">Recover</button>
+
+      <div class="link">
+        <a onclick="showLogin()">Back to Login</a>
+      </div>
+    </div>
+
+    <p id="msg"></p>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <h2 id="welcome"></h2>
+  <p>✅ You are logged in. Login popup is hidden.</p>
+  <button class="logout" onclick="logout()">Logout</button>
+</div>
+
+<script>
+/* DEMO USERS */
+const demoUsers=[
+ {u:"vishal",p:"sarathe"},
+ {u:"kshitij",p:"maurya"}
+];
+let users=JSON.parse(localStorage.getItem("users"))||[];
+
+/* PAGE LOAD CHECK */
+document.addEventListener("DOMContentLoaded",()=>{
+  overlay.style.display="none";
+
+  if(localStorage.getItem("isLoggedIn")==="true"){
+    showDashboard();
+  }
+});
+
+/* OPEN / CLOSE AUTH */
+function openAuth(){
+  overlay.style.display="flex";
+  showLogin();
+}
+function closeAuth(){
+  overlay.style.display="none";
+  msg.textContent="";
+}
+
+/* HELPERS */
+function allUsers(){return [...demoUsers,...users]}
+function toggle(type){
+  loginBox.style.display=type==="login"?"block":"none";
+  signupBox.style.display=type==="signup"?"block":"none";
+  forgotBox.style.display=type==="forgot"?"block":"none";
+  msg.textContent="";
+}
+function showLogin(){toggle("login")}
+function showSignup(){toggle("signup")}
+function showForgot(){toggle("forgot")}
+
+/* LOGIN */
+function login(){
+  const u=luser.value.trim();
+  const p=lpass.value.trim();
+  const ok=allUsers().find(x=>x.u===u && x.p===p);
+
+  if(ok){
+    localStorage.setItem("isLoggedIn","true");
+    localStorage.setItem("loggedUser",u);
+    showDashboard();
+  }else{
+    msg.textContent="Invalid credentials";
+    msg.className="error";
+  }
+}
+
+/* SIGNUP */
+function signup(){
+  const u=suser.value.trim();
+  const p=spass.value.trim();
+  if(users.find(x=>x.u===u)){
+    msg.textContent="User already exists";
+    msg.className="error";
+    return;
+  }
+  users.push({u,p});
+  localStorage.setItem("users",JSON.stringify(users));
+  msg.textContent="Signup successful. Please login.";
+  msg.className="success";
+  showLogin();
+}
+
+/* FORGOT */
+function recover(){
+  const u=fuser.value.trim();
+  const user=allUsers().find(x=>x.u===u);
+  if(user){
+    msg.textContent=`Username: ${user.u} | Password: ${user.p}`;
+    msg.className="success";
+  }else{
+    msg.textContent="User not found";
+    msg.className="error";
+  }
+}
+
+/* DASHBOARD */
+function showDashboard(){
+  setTimeout(()=>location.href="excercise.html",800);
+}
+
+/* LOGOUT */
+function logout(){
+  localStorage.clear();
+  location.reload();
+}
+</script>
+
+</body>
+</html>
