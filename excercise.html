@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Replicfit | AI Exercises</title>
+
+<!-- Bootstrap -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0b0f14;
+  --panel:#121924;
+  --panel-soft:#0f1624;
+  --brand:#ff3d71;
+  --accent:#4da3ff;
+  --text:#e6f0ff;
+  --muted:#9bb0c9;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',system-ui,sans-serif;
+}
+
+/* HEADER */
+header{
+  background:#0a0f18;
+  padding:14px 30px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid #1b2436;
+}
+header button{
+  background:var(--brand);
+  border:none;
+  color:#fff;
+  padding:6px 14px;
+  border-radius:6px;
+}
+
+/* HERO */
+.hero{
+  padding:40px 20px;
+  text-align:center;
+  background:linear-gradient(180deg,#0f1624,#0b0f14);
+}
+.hero p{color:var(--muted)}
+
+.wrapper{
+  max-width:1200px;
+  margin:40px auto;
+}
+
+/* CARD */
+.exercise-card{
+  background:var(--panel);
+  border-radius:14px;
+  border:1px solid #1c2638;
+  margin-bottom:22px;
+  overflow:hidden;
+}
+
+/* HEADER */
+.exercise-header{
+  padding:18px 22px;
+  cursor:pointer;
+  background:var(--panel-soft);
+  border-left:6px solid var(--brand);
+}
+.exercise-no{
+  font-size:12px;
+  color:var(--muted);
+}
+.exercise-title{
+  font-size:22px;
+  font-weight:600;
+}
+
+/* CONTENT */
+.exercise-content{
+  display:none;
+  padding:30px 24px;
+}
+
+/* CAMERA */
+.video-wrap{
+  position:relative;
+  max-width:900px;
+}
+video{
+  width:100%;
+  border-radius:14px;
+  background:#000;
+}
+canvas{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+
+footer{
+  margin-top:60px;
+  padding:20px;
+  text-align:center;
+  color:#7f8da8;
+  border-top:1px solid #1b2436;
+}
+</style>
+</head>
+
+<body>
+
+<script>
+if(localStorage.getItem("isLoggedIn")!=="true"){
+  location.href="index.html";
+}
+</script>
+
+<header>
+  <b>Replicfit</b>
+  <button onclick="logout()">Logout</button>
+</header>
+
+<section class="hero">
+  <h1>AI Exercise Program</h1>
+  <p>Live camera • Pose detection • Rehab friendly</p>
+</section>
+
+<div class="wrapper">
+
+<!-- ================= EXERCISE 1 ================= -->
+<div class="exercise-card">
+  <div class="exercise-header">
+    <div class="exercise-no">EXERCISE 1</div>
+    <div class="exercise-title">Squat – AI Pose</div>
+  </div>
+
+  <div class="exercise-content">
+
+    <div class="video-wrap mb-3">
+      <video id="input_video" autoplay muted playsinline></video>
+      <canvas id="output_canvas"></canvas>
+    </div>
+
+    <button id="btnStart" class="btn btn-success btn-sm me-2">Start Camera</button>
+    <button id="btnStop" class="btn btn-danger btn-sm">Stop</button>
+
+    <div id="status" class="text-muted mt-2">Status: Idle</div>
+    <div id="reps" class="text-muted">Reps: 0</div>
+
+  </div>
+</div>
+
+</div>
+
+<footer>© 2025 Replicfit • AI enabled</footer>
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+<script>
+/* Accordion */
+document.querySelectorAll(".exercise-header").forEach(h=>{
+  h.onclick=()=>{
+    const c=h.parentElement.querySelector(".exercise-content");
+    c.style.display=c.style.display==="block"?"none":"block";
+  };
+});
+
+/* ANGLE CALC */
+function angle(a,b,c){
+  const ab={x:a.x-b.x,y:a.y-b.y};
+  const cb={x:c.x-b.x,y:c.y-b.y};
+  return Math.acos((ab.x*cb.x+ab.y*cb.y)/
+  (Math.hypot(ab.x,ab.y)*Math.hypot(cb.x,cb.y)))*(180/Math.PI);
+}
+
+/* AI LOGIC */
+let camera=null, pose=null;
+let repState="up", repCount=0;
+
+const video=document.getElementById("input_video");
+const canvas=document.getElementById("output_canvas");
+const ctx=canvas.getContext("2d");
+
+function onResults(results){
+  canvas.width=video.videoWidth;
+  canvas.height=video.videoHeight;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(!results.poseLandmarks) return;
+
+  drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS,{color:"#4da3ff",lineWidth:3});
+  drawLandmarks(ctx, results.poseLandmarks,{color:"#ff3d71",radius:3});
+
+  const hip=results.poseLandmarks[23];
+  const knee=results.poseLandmarks[25];
+  const ankle=results.poseLandmarks[27];
+
+  const kneeAngle=Math.round(angle(hip,knee,ankle));
+
+  if(kneeAngle < 100 && repState==="up"){
+    repState="down";
+    status.innerText="Status: Down";
+  }
+  if(kneeAngle > 160 && repState==="down"){
+    repCount++;
+    repState="up";
+    reps.innerText="Reps: "+repCount;
+    status.innerText="Status: Up";
+  }
+}
+
+async function startAI(){
+  pose=new Pose({
+    locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+  });
+
+  pose.setOptions({
+    modelComplexity:1,
+    smoothLandmarks:true,
+    minDetectionConfidence:0.5,
+    minTrackingConfidence:0.5
+  });
+
+  pose.onResults(onResults);
+
+  camera=new Camera(video,{
+    onFrame:async()=>{ await pose.send({image:video}); },
+    width:640,
+    height:480
+  });
+
+  camera.start();
+}
+
+function stopAI(){
+  if(camera){
+    camera.stop();
+    camera=null;
+  }
+}
+
+btnStart.onclick=startAI;
+btnStop.onclick=stopAI;
+
+function logout(){
+  localStorage.clear();
+  location.href="index.html";
+}
+</script>
+
+</body>
+</html>
